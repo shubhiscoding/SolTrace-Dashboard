@@ -26,6 +26,8 @@ const LogSchema = new mongoose.Schema({
     rawBase64: { type: String }
 });
 
+LogSchema.index({ "$**": "text" });
+
 const SolTraceLog = mongoose.models.SolTraceLog || mongoose.model('SolTraceLog', LogSchema);
 
 // 2. Decoder Logic (moved from Frontend to Backend)
