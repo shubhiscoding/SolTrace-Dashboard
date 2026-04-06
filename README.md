@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Soltrace Dashboard ⚡
 
-## Getting Started
+Soltrace is a high-performance observability and structured logging dashboard for Solana programs. It provides a real-time, searchable database interface for events emitted natively using the `sol_log!` macro, capturing exactly what is happening inside your smart contracts in a compute-efficient manner.
 
-First, run the development server:
+Unlike standard `msg!` string formatting which burns thousands of Compute Units on-chain, SolTrace relies on emitting cheap encoded JSON via return data pipelines, and offloads all parsing, indexing, and structuring to this standalone dashboard backend heavily utilizing `@solana/kit`.
+
+---
+
+## Architecture Overview
+
+**1. Background Indexer (`src/indexer.ts`)**
+A continuous background daemon that connects to a Solana RPC (Helius/Localnet) via websockets. It sniffs for `Program data:` emits tailored for your Program ID, seamlessly decodes the Base64 binary packets into strict JSON using standard struct parsers, and pipes them directly into MongoDB.
+
+**2. API Backend (`src/app/api/logs/route.ts`)**
+A fast Next.js API powered by MongoDB that executes the complicated deep JSON searches, text relevance ranking, and filtering natively across the data pool.
+
+**3. Frontend User Interface**
+An ultra-modern, dark-themed React UI optimized to query MongoDB flawlessly. It provides responsive text searches, level filtering, and a seamless Live/Pause event loop without ever relying on browser-heavy web3 decoding.
+
+---
+
+## Setup Instructions
+
+### 1. Database Setup
+You will need a MongoDB cluster (e.g., MongoDB Atlas, strictly recommended for text scanning). 
+
+Create a `.env.local` file in the root of this folder and add your specific credentials:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# .env.local
+MONGO_URI="mongodb+srv://<USER>:<PASSWORD>@<CLUSTER>.mongodb.net/soltrace?appName=Cluster0"
+SOLANA_RPC_WS="wss://devnet.helius-rpc.com/?api-key=<YOUR_HELIUS_KEY>"
+PROGRAM_ID="Bhf9E7kVVCavZHoy38hCB9vRMRDDSESRXVhDpRvAPErx"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
+Make sure you have Node > 18.x installed. Run:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Running the Stack
+The observability stack is a true decoupled architecture, meaning you need to run **TWO** terminal windows.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Terminal 1: Start the Background Indexer**
+This Node task connects to Solana and aggressively pushes blocks to MongoDB.
+```bash
+npm run indexer
+```
 
-## Learn More
+**Terminal 2: Start the Next.js UI**
+This spins up the Dashboard interface at `http://localhost:3000`.
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Features
+* **Deep Native JS/MongoDB Scoring**: Queries automatically count occurrences seamlessly across Base64 signatures, explicit structs, or metadata.
+* **Instant Reactive Filters**: Searching or altering level dropdowns instantly requests sub-millisecond query pipelines against MongoDB.
+* **Pause / Live Toggle**: Freeze your streams while you investigate complex structural logs while maintaining filtering capabilities against your static view.
